@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { supabase } from "../lib/supabase";
 import {
   ShoppingCart,
   Heart,
@@ -136,9 +137,9 @@ const BACKEND_CONFIG = {
   ordersUrl: "https://deine-domain.ch/api/orders",
   contactUrl: "https://deine-domain.ch/api/contact",
   productsUrl: "https://deine-domain.ch/api/products",
-  stripeCheckoutUrl: "https://deine-domain.ch/api/checkout/stripe",
+  stripeCheckoutUrl: "/api/checkout/stripe",
   twintCheckoutUrl: "https://deine-domain.ch/api/checkout/twint",
-  useBackend: false,
+  useBackend: true,
 };
 
 const SHOP_SETTINGS = {
@@ -186,6 +187,17 @@ function getLS<T>(key: string, fallback: T): T {
 function setLS<T>(key: string, value: T) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function parseFeatures(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 const emptyProduct = (): Product => ({
@@ -243,19 +255,78 @@ export default function HelvSafeLandingPage() {
   const [contactLoading, setContactLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
 
+  const loadProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.error("Supabase products load error:", error);
+      setProducts(DEFAULT_PRODUCTS);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setProducts(
+        data.map((p: any) => ({
+          id: Number(p.id),
+          title: p.title || "",
+          subtitle: p.subtitle || "",
+          description: p.description || "",
+          price: Number(p.price) || 0,
+          image: p.image || "https://placehold.co/800x1000/f8fafc/475569?text=Produktbild",
+          badge: p.badge || "Neu",
+          category: p.category || "Allgemein",
+          features: parseFeatures(p.features),
+          active: Boolean(p.active),
+          stock: Number(p.stock) || 0,
+          sku: p.sku || "",
+        })) as Product[],
+      );
+      return;
+    }
+
+    setProducts(DEFAULT_PRODUCTS);
+  };
+
+  const loadOrders = async () => {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Supabase orders load error:", error);
+      return;
+    }
+
+    if (data) {
+      setOrders(
+        data.map((order: any) => ({
+          id: order.id,
+          createdAt: order.created_at,
+          items: typeof order.items === "string" ? JSON.parse(order.items) : [],
+          subtotal: Number(order.subtotal) || 0,
+          shipping: Number(order.shipping) || 0,
+          discount: Number(order.discount) || 0,
+          total: Number(order.total) || 0,
+          customer: typeof order.customer === "string" ? JSON.parse(order.customer) : {},
+          status: order.status || "neu",
+        }))
+      );
+    }
+  };
+
   useEffect(() => {
-    setProducts(getLS<Product[]>("helvsafe_products", DEFAULT_PRODUCTS));
-    setOrders(getLS<Order[]>("helvsafe_orders", []));
+    loadProducts();
+    loadOrders();
     setCart(getLS<CartItem[]>("helvsafe_cart", []));
   }, []);
 
-  useEffect(() => {
-    setLS("helvsafe_products", products);
-  }, [products]);
+  
 
-  useEffect(() => {
-    setLS("helvsafe_orders", orders);
-  }, [orders]);
+  
 
   useEffect(() => {
     setLS("helvsafe_cart", cart);
@@ -297,13 +368,18 @@ export default function HelvSafeLandingPage() {
   };
 
   const removeProduct = async (id: number) => {
+    const { error } = await supabase.from("products").delete().eq("id", id);
+
+    if (error) {
+      setAdminMessage("Produkt konnte nicht gelöscht werden.");
+      setTimeout(() => setAdminMessage(""), 2500);
+      return;
+    }
+
     setProducts((current) => current.filter((p) => p.id !== id));
     setCart((current) => current.filter((c) => c.id !== id));
-    if (BACKEND_CONFIG.useBackend) {
-      try {
-        await fetch(`${BACKEND_CONFIG.productsUrl}/${id}`, { method: "DELETE" });
-      } catch {}
-    }
+    setAdminMessage("Produkt gelöscht.");
+    setTimeout(() => setAdminMessage(""), 2500);
   };
 
   const saveProduct = async () => {
@@ -317,40 +393,33 @@ export default function HelvSafeLandingPage() {
       return;
     }
 
-    const normalized: Product = {
-      ...productForm,
-      id: editingProduct ? productForm.id : Date.now(),
+    const basePayload = {
       title: productForm.title.trim(),
       subtitle: productForm.subtitle.trim(),
       description: productForm.description.trim(),
       image: productForm.image?.trim() || "https://placehold.co/800x1000/f8fafc/475569?text=Produktbild",
       badge: productForm.badge?.trim() || "Neu",
       category: productForm.category?.trim() || "Allgemein",
-      active: true,
+      active: Boolean(productForm.active),
       price: Number(productForm.price) || 0,
       stock: Number(productForm.stock) || 0,
-      features: Array.isArray(productForm.features) ? productForm.features.filter(Boolean) : [],
+      features: parseFeatures(productForm.features).join(", "),
       sku: productForm.sku?.trim() || `HS-${Date.now()}`,
     };
 
-    setProducts((current) => {
-      const exists = current.some((p) => p.id === normalized.id);
-      if (exists) {
-        return current.map((p) => (p.id === normalized.id ? normalized : p));
-      }
-      return [normalized, ...current];
-    });
+    const payload = editingProduct
+      ? { ...basePayload, id: productForm.id }
+      : basePayload;
 
-    if (BACKEND_CONFIG.useBackend) {
-      try {
-        await fetch(BACKEND_CONFIG.productsUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(normalized),
-        });
-      } catch {}
+    const { error } = await supabase.from("products").upsert([payload]).select();
+
+    if (error) {
+      console.error("Supabase save product error:", error);
+      setAdminMessage("Produkt konnte nicht gespeichert werden.");
+      return;
     }
 
+    await loadProducts();
     setAdminMessage(editingProduct ? "Produkt gespeichert." : "Produkt hinzugefügt.");
     setEditingProduct(null);
     setProductForm(emptyProduct());
@@ -429,7 +498,26 @@ export default function HelvSafeLandingPage() {
           }
         }
       }
-      setOrders((current) => [newOrder, ...current]);
+      const { error } = await supabase.from("orders").insert([
+        {
+          id: newOrder.id,
+          created_at: newOrder.createdAt,
+          items: JSON.stringify(newOrder.items),
+          subtotal: newOrder.subtotal,
+          shipping: newOrder.shipping,
+          discount: newOrder.discount,
+          total: newOrder.total,
+          customer: JSON.stringify(newOrder.customer),
+          status: newOrder.status,
+        },
+      ]);
+
+      if (error) {
+        console.error("Supabase order save error:", error);
+        return;
+      }
+
+      await loadOrders();
       setCart([]);
       setAppliedDiscount(0);
       setOrderPlaced(true);
@@ -485,7 +573,6 @@ export default function HelvSafeLandingPage() {
               <a href="#produkte" className="transition hover:text-red-500">Produkte</a>
               <a href="#warenkorb" className="transition hover:text-red-500">Warenkorb</a>
               <a href="#kontakt" className="transition hover:text-red-500">Kontakt</a>
-              <a href="#kontakt" className="transition hover:text-red-500">Kontakt</a>
             </nav>
 
             <div className="flex items-center gap-3">
@@ -531,11 +618,11 @@ export default function HelvSafeLandingPage() {
               transition={{ duration: 0.5 }}
               className="max-w-xl"
             >
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-red-500 shadow-sm">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50/80 px-4 py-1.5 text-sm font-medium text-red-600 shadow-sm">
                 <Heart className="h-4 w-4" /> Für Studentinnen und erwachsene Frauen
               </div>
 
-              <h1 className="text-5xl font-semibold leading-[0.98] tracking-tight sm:text-6xl lg:text-7xl">
+              <h1 className="text-5xl font-semibold leading-[0.98] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
                 Fühl dich sicher,
                 <br />
                 <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-red-500 bg-clip-text text-transparent">
@@ -544,8 +631,7 @@ export default function HelvSafeLandingPage() {
               </h1>
 
               <p className="mt-6 text-lg leading-8 text-slate-600 sm:text-xl">
-                Schutz, Orientierung und diskrete Sicherheitsprodukte für Studentinnen und erwachsene Frauen,
-                die ihren Alltag, Heimweg oder belastende Situationen sicherer gestalten möchten.
+                Diskrete Sicherheitsprodukte für Studentinnen und erwachsene Frauen, die ihren Alltag, den Heimweg und belastende Situationen mit mehr Kontrolle, Ruhe und Handlungssicherheit gestalten möchten.
               </p>
 
               <p className="mt-4 text-base font-medium text-red-500">{SHOP_SETTINGS.donationText}</p>
@@ -561,13 +647,13 @@ export default function HelvSafeLandingPage() {
                   href="#produkte"
                   className="rounded-full bg-gradient-to-r from-red-500 to-red-600 px-8 py-3.5 text-sm font-medium text-white shadow-xl shadow-red-200 transition hover:scale-[1.02]"
                 >
-                  Jetzt entdecken →
+                  Produkte ansehen
                 </a>
                 <button
                   onClick={() => setCheckoutOpen(true)}
                   className="rounded-full border border-slate-200 bg-white px-8 py-3.5 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
                 >
-                  Jetzt sicher bestellen
+                  Diskret bestellen
                 </button>
               </div>
 
@@ -589,7 +675,7 @@ export default function HelvSafeLandingPage() {
             >
               <div className="absolute -left-6 top-10 h-40 w-40 rounded-full bg-red-200/70 blur-3xl" />
               <div className="absolute -right-6 bottom-8 h-44 w-44 rounded-full bg-slate-200 blur-3xl" />
-              <div className="relative overflow-hidden rounded-[2.25rem] border border-white/70 bg-white/80 p-3 shadow-[0_35px_90px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+              <div className="relative overflow-hidden rounded-[2.25rem] border border-white/80 bg-white/90 p-3 shadow-[0_35px_90px_rgba(15,23,42,0.16)] backdrop-blur-xl">
                 <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/70 to-transparent pointer-events-none" />
                 <img
   src="/hero.jpg"
@@ -597,7 +683,7 @@ export default function HelvSafeLandingPage() {
   className="block h-[560px] w-full rounded-[1.75rem] object-cover object-[center_top] shadow-[0_40px_100px_rgba(0,0,0,0.25)] transition duration-700 hover:scale-[1.02]"
 />
               </div>
-              <div className="absolute -bottom-5 left-6 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+              <div className="absolute -bottom-5 left-6 rounded-2xl border border-slate-200 bg-white/95 px-5 py-3 shadow-xl backdrop-blur">
                 <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Diskret</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">Für Alltag & Heimweg</div>
               </div>
@@ -607,12 +693,12 @@ export default function HelvSafeLandingPage() {
           <section className="mx-auto max-w-7xl px-6 pb-10 lg:px-8">
             <div className="grid gap-6 md:grid-cols-3">
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="text-sm text-slate-500">Aktive Produkte</div>
+                <div className="text-sm text-slate-500">Ausgewählte Produkte</div>
                 <div className="mt-2 text-3xl font-semibold">{activeProducts.length}</div>
               </div>
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="text-sm text-slate-500">Bestellungen</div>
-                <div className="mt-2 text-3xl font-semibold">{orders.length}</div>
+                <div className="text-sm text-slate-500">Diskreter Support</div>
+                <div className="mt-2 text-3xl font-semibold">Persönlich</div>
               </div>
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="text-sm text-slate-500">Diskreter Versand</div>
@@ -624,8 +710,9 @@ export default function HelvSafeLandingPage() {
           <section id="produkte" className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-sm font-medium uppercase tracking-[0.25em] text-slate-500">Shop</div>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Produkte</h2>
+                <div className="text-sm font-medium uppercase tracking-[0.25em] text-slate-500">Auswahl</div>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Diskrete Produkte für Alltag und Heimweg</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Sorgfältig ausgewählte Produkte mit ruhiger, erwachsener Gestaltung – ohne alarmistische Bildsprache, aber mit klarer Funktion im Alltag.</p>
               </div>
               <div className="relative w-full max-w-md md:w-auto">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -646,7 +733,7 @@ export default function HelvSafeLandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
-                  className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                  className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(15,23,42,0.12)]"
                 >
                   <div className="relative overflow-hidden rounded-[1.25rem] bg-slate-50">
                     <img
@@ -654,7 +741,7 @@ export default function HelvSafeLandingPage() {
                       alt={product.title}
                       className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                     />
-                    <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-red-500 shadow-sm">
+                    <div className="absolute left-4 top-4 rounded-full border border-white/80 bg-white/95 px-3 py-1 text-xs font-medium text-red-600 shadow-sm">
                       {product.badge}
                     </div>
                   </div>
@@ -689,7 +776,7 @@ export default function HelvSafeLandingPage() {
                       disabled={product.stock <= 0}
                       className="rounded-full bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-200 transition hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
                     >
-                      {product.stock > 0 ? "Sofort kaufen" : "Ausverkauft"}
+                      {product.stock > 0 ? "In den Warenkorb" : "Ausverkauft"}
                     </button>
                   </div>
                 </motion.div>
@@ -701,7 +788,7 @@ export default function HelvSafeLandingPage() {
             <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold">Warenkorb</h2>
+                  <h2 className="text-2xl font-semibold">Deine Auswahl</h2>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-red-500">{itemCount} Artikel</span>
                 </div>
 
@@ -730,7 +817,7 @@ export default function HelvSafeLandingPage() {
               </div>
 
               <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-xl font-semibold">Zusammenfassung</h3>
+                <h3 className="text-xl font-semibold">Bestellübersicht</h3>
                 <div className="mt-2 text-xs text-red-500">5% deiner Bestellung gehen an Frauen-Notfallstellen</div>
 
                 <div className="mt-6 space-y-3 text-sm">
@@ -761,7 +848,7 @@ export default function HelvSafeLandingPage() {
                   onClick={() => setCheckoutOpen(true)}
                   className="mt-6 w-full rounded-full bg-gradient-to-r from-red-500 to-red-600 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-red-200 transition hover:scale-[1.01]"
                 >
-                  Jetzt sicher bestellen →
+                  Zur Bestellung
                 </button>
 
                 <div className="mt-5 rounded-[1rem] bg-slate-50 p-4">
@@ -804,8 +891,7 @@ export default function HelvSafeLandingPage() {
     <div className="max-w-2xl">
       <h2 className="text-2xl font-semibold">Kontakt und Unterstützung</h2>
       <p className="mt-3 text-sm leading-7 text-slate-600">
-        Für Fragen zu Versand, Produkten oder diskreter Bestellung. Wenn du von Gewalt betroffen bist,
-        setze bei akuter Gefahr bitte zuerst den Notruf 117 ein oder wende dich an eine offizielle Opferhilfe.
+        Für Fragen zu Versand, Produkten oder diskreter Bestellung. Die Seite richtet sich an erwachsene Frauen und Studentinnen, die sich klar, ruhig und ohne reißerische Ansprache informieren möchten. Bei akuter Gefahr nutze bitte zuerst den Notruf 117 oder die offizielle Opferhilfe.
       </p>
     </div>
 
@@ -848,7 +934,7 @@ export default function HelvSafeLandingPage() {
           <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-sm text-slate-500 md:grid-cols-4 lg:px-8">
             <div>
               <div className="font-semibold text-slate-900">{SHOP_SETTINGS.name}</div>
-              <p className="mt-3 leading-7">Premium Schweizer Online-Shop für diskrete Sicherheitsprodukte mit Fokus auf Sicherheit & Vertrauen. 5% aller Einnahmen unterstützen Frauen-Notfallstellen in der Schweiz.</p>
+              <p className="mt-3 leading-7">Schweizer Online-Shop für diskrete Sicherheitsprodukte mit erwachsener, ruhiger Gestaltung. 5% aller Einnahmen unterstützen Frauen-Notfallstellen in der Schweiz.</p>
             </div>
             <div>
               <div className="font-semibold text-slate-900">Shop</div>
@@ -881,7 +967,7 @@ export default function HelvSafeLandingPage() {
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold">Checkout</h2>
-                  <p className="mt-1 text-sm text-slate-500">Bestellungen werden lokal gespeichert oder optional an dein Backend gesendet.</p>
+                  <p className="mt-1 text-sm text-slate-500">Bestellungen werden sicher verarbeitet und in deiner Datenbank gespeichert.</p>
                 </div>
                 <button onClick={() => setCheckoutOpen(false)} className="rounded-full border border-slate-200 p-2"><X className="h-5 w-5" /></button>
               </div>
@@ -890,7 +976,7 @@ export default function HelvSafeLandingPage() {
                 <div className="rounded-[1.5rem] bg-slate-50 p-8 text-center">
                   <CheckCircle2 className="mx-auto h-10 w-10 text-red-500" />
                   <div className="mt-4 text-xl font-semibold">Bestellung gespeichert</div>
-                  <p className="mt-2 text-sm text-slate-500">Die Bestellung wurde lokal im Browser angelegt.</p>
+                  <p className="mt-2 text-sm text-slate-500">Die Bestellung wurde erfolgreich in deiner Datenbank gespeichert.</p>
                 </div>
               ) : (
                 <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -1051,7 +1137,7 @@ export default function HelvSafeLandingPage() {
                 <button onClick={() => setLegalPage(null)} className="rounded-full border border-slate-200 p-2"><X className="h-5 w-5" /></button>
               </div>
               {legalPage === "impressum" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p><strong>{SHOP_SETTINGS.name}</strong></p><p>{SHOP_SETTINGS.address}</p><p>{SHOP_SETTINGS.email}</p><p>{SHOP_SETTINGS.phone}</p></div>}
-              {legalPage === "datenschutz" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p>Diese Demo speichert Produkte, Warenkorb und Bestellungen lokal im Browser.</p><p>Für den Live-Betrieb musst du eine echte Datenschutzerklärung mit Tracking, Zahlungsanbietern und Hosting ergänzen.</p></div>}
+              {legalPage === "datenschutz" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p>Produkte und Bestellungen werden über Supabase gespeichert. Der Warenkorb bleibt aktuell noch lokal im Browser gespeichert.</p><p>Für den Live-Betrieb musst du eine echte Datenschutzerklärung mit Tracking, Zahlungsanbietern und Hosting ergänzen.</p></div>}
               {legalPage === "agb" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p>Dies ist ein Platzhalter für deine AGB.</p><p>Vor dem Livegang solltest du Lieferbedingungen, Retouren, Zahlungsarten und Haftung rechtlich prüfen lassen.</p></div>}
             </div>
           </div>
