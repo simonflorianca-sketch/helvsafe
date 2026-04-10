@@ -134,19 +134,18 @@ const DEFAULT_PRODUCTS: Product[] = [
 ];
 
 const BACKEND_CONFIG = {
-  ordersUrl: "https://deine-domain.ch/api/orders",
-  contactUrl: "https://deine-domain.ch/api/contact",
-  productsUrl: "https://deine-domain.ch/api/products",
-  stripeCheckoutUrl: "/api/checkout/stripe",
-  twintCheckoutUrl: "https://deine-domain.ch/api/checkout/twint",
+  ordersUrl: "/api/orders",
+  contactUrl: "/api/contact",
+  productsUrl: "/api/products",
+  checkoutUrl: "/api/checkout/payrexx",
   useBackend: true,
 };
 
 const SHOP_SETTINGS = {
   name: "HelvSafe",
   email: "hello@helvsafe.ch",
-  phone: "+41 44 000 00 00",
-  address: "Musterstrasse 10, 8000 Zürich, Schweiz",
+  phone: "",
+  address: "Leisihaldenstrasse 35c, 8623 Wetzikon ZH, Schweiz",
   shippingNotice: "Gratis Versand ab CHF 80 in der Schweiz und nach Liechtenstein",
   adminPassword: "helvsafe123",
   donationText: "5% jeder Bestellung gehen an Frauen-Notfallstellen in der Schweiz.",
@@ -249,8 +248,7 @@ export default function HelvSafeLandingPage() {
     email: "",
     message: "",
   });
-  const [orderPlaced, setOrderPlaced] = useState(false);
-  const [contactSent, setContactSent] = useState(false);
+    const [contactSent, setContactSent] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
@@ -449,86 +447,66 @@ export default function HelvSafeLandingPage() {
   
 
   const placeOrder = async () => {
-    if (
-      !checkoutData.firstName ||
-      !checkoutData.lastName ||
-      !checkoutData.email ||
-      !checkoutData.address ||
-      !checkoutData.zip ||
-      !checkoutData.city ||
-      cart.length === 0
-    ) {
+  if (
+    !checkoutData.firstName ||
+    !checkoutData.lastName ||
+    !checkoutData.email ||
+    !checkoutData.address ||
+    !checkoutData.zip ||
+    !checkoutData.city ||
+    cart.length === 0
+  ) {
+    alert("Bitte fülle alle Pflichtfelder aus.");
+    return;
+  }
+
+  if (paymentMethod === "invoice") {
+    alert("Rechnung ist aktuell noch nicht aktiv.");
+    return;
+  }
+
+  const newOrder: Order = {
+    id: `HS-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    items: cart,
+    subtotal,
+    shipping,
+    discount: discountAmount,
+    total,
+    customer: {
+      ...checkoutData,
+      notes: `${checkoutData.notes}${shippingMethod ? ` | Versand: ${shippingMethod}` : ""}${paymentMethod ? ` | Zahlung: ${paymentMethod}` : ""}`,
+    },
+    status: "neu",
+  };
+
+  setCheckoutLoading(true);
+  try {
+    const res = await fetch(BACKEND_CONFIG.checkoutUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: paymentMethod,
+        order: newOrder,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data?.paymentLink || data?.checkoutUrl) {
+      window.location.href = data.paymentLink || data.checkoutUrl;
       return;
     }
 
-    const newOrder: Order = {
-      id: `HS-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      items: cart,
-      subtotal,
-      shipping,
-      discount: discountAmount,
-      total,
-      customer: {
-        ...checkoutData,
-        notes: `${checkoutData.notes}${shippingMethod ? ` | Versand: ${shippingMethod}` : ""}${paymentMethod ? ` | Zahlung: ${paymentMethod}` : ""}`,
-      },
-      status: "neu",
-    };
+    alert(data?.error || "Zahlung konnte nicht gestartet werden");
+  } catch (error) {
+    console.error(error);
+    alert("Fehler bei Zahlung");
+  } finally {
+    setCheckoutLoading(false);
+  }
+};
 
-    setCheckoutLoading(true);
-    try {
-      if (BACKEND_CONFIG.useBackend) {
-        const checkoutUrl = paymentMethod === "twint"
-          ? BACKEND_CONFIG.twintCheckoutUrl
-          : paymentMethod === "card"
-            ? BACKEND_CONFIG.stripeCheckoutUrl
-            : BACKEND_CONFIG.ordersUrl;
-
-        const res = await fetch(checkoutUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newOrder),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.checkoutUrl) {
-            window.location.href = data.checkoutUrl;
-            return;
-          }
-        }
-      }
-      const { error } = await supabase.from("orders").insert([
-        {
-          id: newOrder.id,
-          created_at: newOrder.createdAt,
-          items: JSON.stringify(newOrder.items),
-          subtotal: newOrder.subtotal,
-          shipping: newOrder.shipping,
-          discount: newOrder.discount,
-          total: newOrder.total,
-          customer: JSON.stringify(newOrder.customer),
-          status: newOrder.status,
-        },
-      ]);
-
-      if (error) {
-        console.error("Supabase order save error:", error);
-        return;
-      }
-
-      await loadOrders();
-      setCart([]);
-      setAppliedDiscount(0);
-      setOrderPlaced(true);
-      setTimeout(() => {
-        setOrderPlaced(false);
-        setCheckoutOpen(false);
-      }, 1600);
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
 
   const sendContactForm = async () => {
     if (!contactData.name || !contactData.email || !contactData.message) return;
@@ -873,12 +851,12 @@ export default function HelvSafeLandingPage() {
                       Rechnung
                     </button>
                   </div>
-                  <div className="mt-3 text-xs text-slate-500">TWINT und Karten leiten später an dein Backend oder Stripe weiter.</div>
+                  <div className="mt-3 text-xs text-slate-500">TWINT und Kreditkarte werden über dein Payrexx-Backend abgewickelt.</div>
                 </div>
 
                 <div className="mt-5 space-y-2 text-sm text-slate-500">
                   <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-red-500" /> Versand in Schweiz & Liechtenstein</div>
-                  <div className="flex items-center gap-2"><Lock className="h-4 w-4 text-red-500" /> Zahlung lokal testbar, Backend vorbereitbar</div>
+                  <div className="flex items-center gap-2"><Lock className="h-4 w-4 text-red-500" /> Zahlung wird über Payrexx weitergeleitet</div>
                 </div>
               </div>
             </div>
@@ -956,7 +934,7 @@ export default function HelvSafeLandingPage() {
             </div>
             <div>
               <div className="font-semibold text-slate-900">Kontakt</div>
-              <div className="mt-3 space-y-2"><div>{SHOP_SETTINGS.email}</div><div>Zürich, Schweiz</div></div>
+              <div className="mt-3 space-y-2"><div>{SHOP_SETTINGS.email}</div><div>8623 Wetzikon ZH, Schweiz</div></div>
             </div>
           </div>
         </footer>
@@ -967,19 +945,11 @@ export default function HelvSafeLandingPage() {
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold">Checkout</h2>
-                  <p className="mt-1 text-sm text-slate-500">Bestellungen werden sicher verarbeitet und in deiner Datenbank gespeichert.</p>
+                  <p className="mt-1 text-sm text-slate-500">Zahlungen werden sicher über Payrexx weitergeleitet. Nach erfolgreicher Freischaltung durch den Zahlungsanbieter können TWINT und Kreditkarte genutzt werden.</p>
                 </div>
                 <button onClick={() => setCheckoutOpen(false)} className="rounded-full border border-slate-200 p-2"><X className="h-5 w-5" /></button>
               </div>
-
-              {orderPlaced ? (
-                <div className="rounded-[1.5rem] bg-slate-50 p-8 text-center">
-                  <CheckCircle2 className="mx-auto h-10 w-10 text-red-500" />
-                  <div className="mt-4 text-xl font-semibold">Bestellung gespeichert</div>
-                  <p className="mt-2 text-sm text-slate-500">Die Bestellung wurde erfolgreich in deiner Datenbank gespeichert.</p>
-                </div>
-              ) : (
-                <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
                   <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <input placeholder="Vorname" value={checkoutData.firstName} onChange={(e) => setCheckoutData((d) => ({ ...d, firstName: e.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-red-300" />
@@ -1022,10 +992,9 @@ export default function HelvSafeLandingPage() {
                     <button onClick={placeOrder} disabled={checkoutLoading} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-red-500 to-red-600 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-red-200 disabled:opacity-60">
                       <CreditCard className="h-4 w-4" /> {checkoutLoading ? "Wird verarbeitet..." : paymentMethod === "twint" ? "Mit TWINT weiter" : paymentMethod === "card" ? "Mit Karte weiter" : "Bestellung abschicken"}
                     </button>
-                    <p className="mt-3 text-xs leading-6 text-slate-500">Mit BACKEND_CONFIG.useBackend = true kann die Bestellung an TWINT, Stripe oder dein eigenes Backend gesendet werden.</p>
+                    <p className="mt-3 text-xs leading-6 text-slate-500">Mit Klick auf den Button wirst du zu Payrexx weitergeleitet. Dort kannst du nach der Freischaltung TWINT oder Kreditkarte als Zahlungsmethode auswählen.</p>
                   </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -1089,11 +1058,26 @@ export default function HelvSafeLandingPage() {
                             <div key={product.id} className="flex items-start justify-between gap-3 rounded-[1rem] bg-slate-50 p-4">
                               <div>
                                 <div className="font-medium">{product.title}</div>
-                                <div className="text-sm text-slate-500">{formatCHF(product.price)} · {product.stock} Stück · {product.active ? "aktiv" : "inaktiv"}</div>
+                                <div className="text-sm text-slate-500">
+                                  {formatCHF(product.price)} · {product.stock} Stück · {product.active ? "aktiv" : "inaktiv"}
+                                </div>
                               </div>
                               <div className="flex gap-2">
-                                <button onClick={() => { setEditingProduct(product); setProductForm(product); }} className="rounded-full border border-slate-200 p-2"><Pencil className="h-4 w-4" /></button>
-                                <button onClick={() => removeProduct(product.id)} className="rounded-full border border-slate-200 p-2"><Trash2 className="h-4 w-4" /></button>
+                                <button
+                                  onClick={() => {
+                                    setEditingProduct(product);
+                                    setProductForm(product);
+                                  }}
+                                  className="rounded-full border border-slate-200 p-2"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => removeProduct(product.id)}
+                                  className="rounded-full border border-slate-200 p-2"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -1109,10 +1093,22 @@ export default function HelvSafeLandingPage() {
                                   <div className="font-medium">{order.id}</div>
                                   <div className="text-sm text-slate-500">{formatCHF(order.total)}</div>
                                 </div>
-                                <div className="mt-1 text-sm text-slate-500">{order.customer.firstName} {order.customer.lastName} · {order.customer.email}</div>
+                                <div className="mt-1 text-sm text-slate-500">
+                                  {order.customer?.firstName || ""} {order.customer?.lastName || ""} · {order.customer?.email || ""}
+                                </div>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                   {(["neu", "bezahlt", "versendet"] as const).map((status) => (
-                                    <button key={status} onClick={() => updateOrderStatus(order.id, status)} className={`rounded-full px-3 py-1 text-xs ${order.status === status ? "bg-gradient-to-r from-red-500 to-red-600 text-white" : "bg-slate-100 text-slate-700"}`}>{status}</button>
+                                    <button
+                                      key={status}
+                                      onClick={() => updateOrderStatus(order.id, status)}
+                                      className={`rounded-full px-3 py-1 text-xs ${
+                                        order.status === status
+                                          ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
+                                          : "bg-slate-100 text-slate-700"
+                                      }`}
+                                    >
+                                      {status}
+                                    </button>
                                   ))}
                                 </div>
                                 <div className="mt-2 text-xs text-slate-500">{new Date(order.createdAt).toLocaleString("de-CH")}</div>
@@ -1136,9 +1132,55 @@ export default function HelvSafeLandingPage() {
                 <h2 className="text-2xl font-semibold capitalize">{legalPage}</h2>
                 <button onClick={() => setLegalPage(null)} className="rounded-full border border-slate-200 p-2"><X className="h-5 w-5" /></button>
               </div>
-              {legalPage === "impressum" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p><strong>{SHOP_SETTINGS.name}</strong></p><p>{SHOP_SETTINGS.address}</p><p>{SHOP_SETTINGS.email}</p><p>{SHOP_SETTINGS.phone}</p></div>}
-              {legalPage === "datenschutz" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p>Produkte und Bestellungen werden über Supabase gespeichert. Der Warenkorb bleibt aktuell noch lokal im Browser gespeichert.</p><p>Für den Live-Betrieb musst du eine echte Datenschutzerklärung mit Tracking, Zahlungsanbietern und Hosting ergänzen.</p></div>}
-              {legalPage === "agb" && <div className="space-y-3 text-sm leading-7 text-slate-600"><p>Dies ist ein Platzhalter für deine AGB.</p><p>Vor dem Livegang solltest du Lieferbedingungen, Retouren, Zahlungsarten und Haftung rechtlich prüfen lassen.</p></div>}
+              {legalPage === "impressum" && (
+                <div className="space-y-3 text-sm leading-7 text-slate-600">
+                  <p><strong>{SHOP_SETTINGS.name}</strong></p>
+                  <p>Candinas SF und Candinas M.</p>
+                  <p>{SHOP_SETTINGS.address}</p>
+                  <p>{SHOP_SETTINGS.email}</p>
+                  <p>Verantwortlich für den Inhalt: Candinas SF und Candinas M.</p>
+                </div>
+              )}
+              {legalPage === "datenschutz" && (
+                <div className="space-y-3 text-sm leading-7 text-slate-600">
+                  <p><strong>Datenschutzerklärung</strong></p>
+                  <p>Der Schutz deiner persönlichen Daten ist uns wichtig. Wir behandeln personenbezogene Daten vertraulich und gemäss den geltenden Datenschutzbestimmungen der Schweiz.</p>
+
+                  <p><strong>Erhebung und Verarbeitung von Daten</strong></p>
+                  <p>Beim Besuch dieser Website werden technische Daten wie IP-Adresse, Browsertyp, Datum und Uhrzeit des Zugriffs verarbeitet, soweit dies für den sicheren Betrieb der Website erforderlich ist.</p>
+
+                  <p><strong>Bestellungen</strong></p>
+                  <p>Bei einer Bestellung verarbeiten wir deine Angaben wie Name, Adresse, E-Mail-Adresse, Telefonnummer sowie Bestelldaten zur Abwicklung der Bestellung, Lieferung und Kundenkommunikation.</p>
+
+                  <p><strong>Zahlungsabwicklung</strong></p>
+                  <p>Die Zahlungsabwicklung erfolgt über den Zahlungsdienstleister Payrexx. Dabei werden die für die Zahlung erforderlichen Daten an Payrexx weitergegeben. Es gelten ergänzend die Datenschutzbestimmungen von Payrexx.</p>
+
+                  <p><strong>Hosting und technische Dienstleister</strong></p>
+                  <p>Diese Website wird über Vercel gehostet. Produkt- und Bestelldaten können zur technischen Verarbeitung und Speicherung über Supabase verarbeitet werden.</p>
+
+                  <p><strong>Kontaktaufnahme</strong></p>
+                  <p>Wenn du uns per Kontaktformular oder E-Mail kontaktierst, verwenden wir deine Angaben ausschliesslich zur Bearbeitung deiner Anfrage.</p>
+
+                  <p><strong>Speicherdauer</strong></p>
+                  <p>Personenbezogene Daten werden nur so lange aufbewahrt, wie dies für die Vertragsabwicklung, gesetzliche Aufbewahrungspflichten oder berechtigte Interessen erforderlich ist.</p>
+
+                  <p><strong>Rechte</strong></p>
+                  <p>Du hast das Recht auf Auskunft, Berichtigung und Löschung deiner personenbezogenen Daten sowie auf Einschränkung der Verarbeitung im gesetzlich zulässigen Rahmen.</p>
+                </div>
+              )}
+              {legalPage === "agb" && (
+                <div className="space-y-3 text-sm leading-7 text-slate-600">
+                  <p><strong>Allgemeine Geschäftsbedingungen (AGB)</strong></p>
+                  <p><strong>1. Geltungsbereich</strong><br />Diese AGB gelten für alle Bestellungen über den Online-Shop HelvSafe.</p>
+                  <p><strong>2. Angebot</strong><br />HelvSafe bietet diskrete Sicherheitsprodukte für den Alltag an. Sämtliche Angebote sind freibleibend und unverbindlich.</p>
+                  <p><strong>3. Preise</strong><br />Alle Preise verstehen sich in Schweizer Franken (CHF). Preisänderungen und Irrtümer bleiben vorbehalten.</p>
+                  <p><strong>4. Zahlung</strong><br />Die Zahlung erfolgt über die im Checkout angebotenen Zahlungsmethoden, insbesondere über Payrexx, TWINT und Kreditkarte, sobald diese freigeschaltet sind.</p>
+                  <p><strong>5. Lieferung</strong><br />Die Lieferung erfolgt innerhalb der Schweiz und nach Liechtenstein an die vom Kunden angegebene Lieferadresse.</p>
+                  <p><strong>6. Rückgabe und Mängel</strong><br />Beanstandungen sind uns innert angemessener Frist mitzuteilen. Rücksendungen erfolgen nur nach vorgängiger Kontaktaufnahme.</p>
+                  <p><strong>7. Haftung</strong><br />HelvSafe haftet nicht für Schäden infolge unsachgemässer oder zweckwidriger Nutzung der angebotenen Produkte.</p>
+                  <p><strong>8. Gerichtsstand und anwendbares Recht</strong><br />Es gilt schweizerisches Recht. Gerichtsstand ist, soweit zulässig, der Sitz des Unternehmens.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
