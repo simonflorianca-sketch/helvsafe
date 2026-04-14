@@ -934,7 +934,7 @@ export default function HelvSafeLandingPage() {
             </div>
             <div>
               <div className="font-semibold text-slate-900">Kontakt</div>
-              <div className="mt-3 space-y-2"><div>{SHOP_SETTINGS.email}</div><div>8623 Wetzikon ZH, Schweiz</div></div>
+              <div className="mt-3 space-y-2"><div>{SHOP_SETTINGS.email}</div><div>Wetzikon ZH, Schweiz</div></div>
             </div>
           </div>
         </footer>
