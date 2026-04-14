@@ -1174,7 +1174,7 @@ export default function HelvSafeLandingPage() {
                   <p><strong>1. Geltungsbereich</strong><br />Diese AGB gelten für alle Bestellungen über den Online-Shop HelvSafe.</p>
                   <p><strong>2. Angebot</strong><br />HelvSafe bietet diskrete Sicherheitsprodukte für den Alltag an. Sämtliche Angebote sind freibleibend und unverbindlich.</p>
                   <p><strong>3. Preise</strong><br />Alle Preise verstehen sich in Schweizer Franken (CHF). Preisänderungen und Irrtümer bleiben vorbehalten.</p>
-                  <p><strong>4. Zahlung</strong><br />Die Zahlung erfolgt über die im Checkout angebotenen Zahlungsmethoden, insbesondere über Payrexx, TWINT und Kreditkarte, sobald diese freigeschaltet sind.</p>
+                  <p><strong>4. Zahlungen</strong><br />Die Zahlung erfolgt über die im Checkout angebotenen Zahlungsmethoden, insbesondere über Payrexx, TWINT und Kreditkarte, sobald diese freigeschaltet sind.</p>
                   <p><strong>5. Lieferung</strong><br />Die Lieferung erfolgt innerhalb der Schweiz und nach Liechtenstein an die vom Kunden angegebene Lieferadresse.</p>
                   <p><strong>6. Rückgabe und Mängel</strong><br />Beanstandungen sind uns innert angemessener Frist mitzuteilen. Rücksendungen erfolgen nur nach vorgängiger Kontaktaufnahme.</p>
                   <p><strong>7. Haftung</strong><br />HelvSafe haftet nicht für Schäden infolge unsachgemässer oder zweckwidriger Nutzung der angebotenen Produkte.</p>
