@@ -91,14 +91,14 @@ const DEFAULT_PRODUCTS: Product[] = [
   },
   {
     id: 2,
-    title: "Safety Kit",
-    subtitle: "Dein Essentials Set",
-    description: "Elegant zusammengestelltes Set für mehr Ruhe und Sicherheit unterwegs.",
+    title: "Safety Kit (inkl. Alarm & Zubehör)",
+    subtitle: "Transparent zusammengestelltes Sicherheits-Set",
+    description: "Set bestehend aus persönlichem Sicherheitsalarm, Clip/Anhänger zur Befestigung sowie ergänzenden Sicherheits-Accessoires für den Alltag und Heimweg.",
     price: 49.9,
     image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop",
     badge: "Top Wahl",
     category: "Kit",
-    features: ["Set", "Premium Look", "Ideal als Geschenk"],
+    features: ["Persönlicher Alarm", "Clip/Anhänger", "Ergänzende Accessoires", "Alltagstauglich"],
     active: true,
     stock: 14,
     sku: "HS-002",
@@ -222,8 +222,7 @@ export default function HelvSafeLandingPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
-  const [adminAccessInput, setAdminAccessInput] = useState("");
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
+    const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Product>(emptyProduct());
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
@@ -690,7 +689,7 @@ export default function HelvSafeLandingPage() {
               <div>
                 <div className="text-sm font-medium uppercase tracking-[0.25em] text-slate-500">Auswahl</div>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Diskrete Produkte für Alltag und Heimweg</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Sorgfältig ausgewählte Produkte mit ruhiger, erwachsener Gestaltung – ohne alarmistische Bildsprache, aber mit klarer Funktion im Alltag.</p>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Sorgfältig ausgewählte Produkte mit ruhiger, erwachsener Gestaltung – ohne alarmistische Bildsprache, aber mit klarer Funktion im Alltag. Die Inhalte von Sets und Produktkombinationen werden transparent beschrieben.</p>
               </div>
               <div className="relative w-full max-w-md md:w-auto">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -730,6 +729,13 @@ export default function HelvSafeLandingPage() {
                     <p className="mt-1 text-sm font-medium text-red-500">{product.subtitle}</p>
                     <p className="mt-3 text-sm leading-6 text-slate-600">{product.description}</p>
                   </div>
+
+                  {product.category === "Kit" && (
+                    <div className="mt-4 rounded-[1rem] border border-red-100 bg-red-50 px-3 py-3 text-xs leading-6 text-slate-700">
+                      <div className="font-semibold text-slate-900">Inhalt des Sets</div>
+                      <div className="mt-1">Persönlicher Sicherheitsalarm, Clip oder Anhänger zur Befestigung sowie ergänzende Sicherheits-Accessoires für den Alltag.</div>
+                    </div>
+                  )}
 
                   <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
                     <span>SKU {product.sku}</span>
@@ -851,7 +857,7 @@ export default function HelvSafeLandingPage() {
                       Rechnung
                     </button>
                   </div>
-                  <div className="mt-3 text-xs text-slate-500">TWINT und Kreditkarte werden über dein Payrexx-Backend abgewickelt.</div>
+                  <div className="mt-3 text-xs text-slate-500">TWINT und Kreditkarte werden über Payrexx abgewickelt. Die Zahlarten stehen nach erfolgreicher Freischaltung des Zahlungsanbieters zur Verfügung.</div>
                 </div>
 
                 <div className="mt-5 space-y-2 text-sm text-slate-500">
@@ -916,7 +922,7 @@ export default function HelvSafeLandingPage() {
             </div>
             <div>
               <div className="font-semibold text-slate-900">Shop</div>
-              <div className="mt-3 space-y-2"><div>Produkte</div><div>Warenkorb</div><div>Checkout</div></div>
+              <div className="mt-3 space-y-2"><div>Produkte</div><div>Sets mit transparentem Inhalt</div><div>Checkout</div></div>
             </div>
             <div>
               <div className="font-semibold text-slate-900">Rechtliches</div>
@@ -934,7 +940,7 @@ export default function HelvSafeLandingPage() {
             </div>
             <div>
               <div className="font-semibold text-slate-900">Kontakt</div>
-              <div className="mt-3 space-y-2"><div>{SHOP_SETTINGS.email}</div><div>Wetzikon ZH, Schweiz</div></div>
+              <div className="mt-3 space-y-2"><div>{SHOP_SETTINGS.email}</div><div>8623 Wetzikon ZH, Schweiz</div></div>
             </div>
           </div>
         </footer>
@@ -1150,7 +1156,7 @@ export default function HelvSafeLandingPage() {
                   <p>Beim Besuch dieser Website werden technische Daten wie IP-Adresse, Browsertyp, Datum und Uhrzeit des Zugriffs verarbeitet, soweit dies für den sicheren Betrieb der Website erforderlich ist.</p>
 
                   <p><strong>Bestellungen</strong></p>
-                  <p>Bei einer Bestellung verarbeiten wir deine Angaben wie Name, Adresse, E-Mail-Adresse, Telefonnummer sowie Bestelldaten zur Abwicklung der Bestellung, Lieferung und Kundenkommunikation.</p>
+                  <p>Bei einer Bestellung verarbeiten wir deine Angaben wie Name, Adresse, E-Mail-Adresse, Telefonnummer sowie Bestelldaten zur Abwicklung der Bestellung, Lieferung und Kundenkommunikation. Bei Produkt-Sets werden die enthaltenen Bestandteile auf der Website transparent beschrieben.</p>
 
                   <p><strong>Zahlungsabwicklung</strong></p>
                   <p>Die Zahlungsabwicklung erfolgt über den Zahlungsdienstleister Payrexx. Dabei werden die für die Zahlung erforderlichen Daten an Payrexx weitergegeben. Es gelten ergänzend die Datenschutzbestimmungen von Payrexx.</p>
@@ -1172,9 +1178,9 @@ export default function HelvSafeLandingPage() {
                 <div className="space-y-3 text-sm leading-7 text-slate-600">
                   <p><strong>Allgemeine Geschäftsbedingungen (AGB)</strong></p>
                   <p><strong>1. Geltungsbereich</strong><br />Diese AGB gelten für alle Bestellungen über den Online-Shop HelvSafe.</p>
-                  <p><strong>2. Angebot</strong><br />HelvSafe bietet diskrete Sicherheitsprodukte für den Alltag an. Sämtliche Angebote sind freibleibend und unverbindlich.</p>
+                  <p><strong>2. Angebot</strong><br />HelvSafe bietet diskrete Sicherheitsprodukte für den Alltag an, darunter persönliche Sicherheitsalarme, Sets mit transparent ausgewiesenen Bestandteilen sowie Produkte zur besseren Sichtbarkeit. Sämtliche Angebote sind freibleibend und unverbindlich.</p>
                   <p><strong>3. Preise</strong><br />Alle Preise verstehen sich in Schweizer Franken (CHF). Preisänderungen und Irrtümer bleiben vorbehalten.</p>
-                  <p><strong>4. Zahlungen</strong><br />Die Zahlung erfolgt über die im Checkout angebotenen Zahlungsmethoden, insbesondere über Payrexx, TWINT und Kreditkarte, sobald diese freigeschaltet sind.</p>
+                  <p><strong>4. Zahlung</strong><br />Die Zahlung erfolgt über die im Checkout angebotenen Zahlungsmethoden, insbesondere über Payrexx. Verfügbare Zahlungsarten wie TWINT und Kreditkarte werden nach erfolgter Freischaltung angezeigt.</p>
                   <p><strong>5. Lieferung</strong><br />Die Lieferung erfolgt innerhalb der Schweiz und nach Liechtenstein an die vom Kunden angegebene Lieferadresse.</p>
                   <p><strong>6. Rückgabe und Mängel</strong><br />Beanstandungen sind uns innert angemessener Frist mitzuteilen. Rücksendungen erfolgen nur nach vorgängiger Kontaktaufnahme.</p>
                   <p><strong>7. Haftung</strong><br />HelvSafe haftet nicht für Schäden infolge unsachgemässer oder zweckwidriger Nutzung der angebotenen Produkte.</p>
