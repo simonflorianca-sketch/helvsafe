@@ -108,7 +108,7 @@ const DEFAULT_PRODUCTS: Product[] = [
     title: "Safety Light",
     subtitle: "Sichtbarkeit & Sicherheit",
     description: "Kompaktes Sicherheitslicht zur besseren Sichtbarkeit bei Nacht und unterwegs.",
-    price: 9.9,
+    price:11.9,
     image: "/light.jpg",
     badge: "Neu",
     category: "Sichtbarkeit",
