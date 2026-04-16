@@ -77,59 +77,45 @@ type Order = {
 const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 1,
-    title: "Personal Alarm",
-    subtitle: "Diskret & sofort einsatzbereit",
-    description: "Kompakt, laut und einfach mitzunehmen – für Alltag, Pendeln und Heimweg.",
-    price: 24.9,
-    image: "https://images.unsplash.com/photo-1516727003284-a96541e51e9c?q=80&w=1200&auto=format&fit=crop",
+    title: "Pepper Spray",
+    subtitle: "Kompakt & schnell einsatzbereit",
+    description: "Kompaktes Pfefferspray zur Selbstverteidigung im Alltag. Einfach mitzunehmen und im Notfall schnell griffbereit.",
+    price: 19.9,
+    image: "/spray.jpg",
     badge: "Bestseller",
-    category: "Alarm",
-    features: ["Kompakt", "Leicht", "Alltagstauglich"],
+    category: "Selbstschutz",
+    features: ["Kompakt", "Schnell einsetzbar", "Diskret"],
     active: true,
-    stock: 25,
+    stock: 30,
     sku: "HS-001",
   },
   {
     id: 2,
-    title: "Safety Kit (inkl. Alarm & Zubehör)",
-    subtitle: "Transparent zusammengestelltes Sicherheits-Set",
-    description: "Set bestehend aus persönlichem Sicherheitsalarm, Clip/Anhänger zur Befestigung sowie ergänzenden Sicherheits-Accessoires für den Alltag und Heimweg.",
-    price: 49.9,
-    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop",
+    title: "Personal Alarm",
+    subtitle: "Lauter Sicherheitsalarm",
+    description: "Persönlicher Alarm mit lauter Sirene zur Abschreckung und Aufmerksamkeitserzeugung in Gefahrensituationen.",
+    price: 24.9,
+    image: "/alarm.jpg",
     badge: "Top Wahl",
-    category: "Kit",
-    features: ["Persönlicher Alarm", "Clip/Anhänger", "Ergänzende Accessoires", "Alltagstauglich"],
+    category: "Alarm",
+    features: ["Laut", "Einfach", "Alltagstauglich"],
     active: true,
-    stock: 14,
+    stock: 20,
     sku: "HS-002",
   },
   {
     id: 3,
-    title: "Sicherheitsweste",
-    subtitle: "Sichtbarkeit trifft Komfort",
-    description: "Leicht, funktional und angenehm zu tragen – für Abend, Arbeit und Outdoor.",
-    price: 39.9,
-    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1200&auto=format&fit=crop",
+    title: "Safety Light",
+    subtitle: "Sichtbarkeit & Sicherheit",
+    description: "Kompaktes Sicherheitslicht zur besseren Sichtbarkeit bei Nacht und unterwegs.",
+    price: 29.9,
+    image: "/light.jpg",
     badge: "Neu",
     category: "Sichtbarkeit",
-    features: ["Leicht", "Komfortabel", "Praktisch"],
+    features: ["Hell", "Kompakt", "USB ladbar"],
     active: true,
-    stock: 11,
+    stock: 15,
     sku: "HS-003",
-  },
-  {
-    id: 4,
-    title: "Signal-Alarm",
-    subtitle: "Einfach Aufmerksamkeit schaffen",
-    description: "Sofort einsatzbereit und intuitiv – gemacht für stressige Momente.",
-    price: 19.9,
-    image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1200&auto=format&fit=crop",
-    badge: "Essential",
-    category: "Alarm",
-    features: ["Einfach", "Schnell", "Verlässlich"],
-    active: true,
-    stock: 40,
-    sku: "HS-004",
   },
 ];
 
@@ -529,7 +515,7 @@ export default function HelvSafeLandingPage() {
   return (
     <>
       <div className="fixed bottom-4 left-1/2 z-[80] w-[92%] max-w-2xl -translate-x-1/2 rounded-full bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-center text-sm font-medium text-white shadow-2xl">
-        🚀 Schnell & diskret bestellen – Gratis Versand ab CHF 80 • 5% Spende an Frauen-Notfallstellen
+        Diskrete Bestellung • Gratis Versand ab CHF 80 • 5% Unterstützung für Frauen-Notfallstellen
       </div>
 
       <div className="min-h-screen bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#eef2f7_100%)] text-slate-900">
@@ -639,7 +625,7 @@ export default function HelvSafeLandingPage() {
                   {SHOP_SETTINGS.shippingNotice}
                 </span>
                 <span className="rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200">
-                  Sichere Bestellung • TWINT • Karte • 30 Tage Garantie
+                  Sichere Bestellung • Payrexx • TWINT • Kreditkarte
                 </span>
               </div>
             </motion.div>
@@ -733,7 +719,7 @@ export default function HelvSafeLandingPage() {
                   {product.category === "Kit" && (
                     <div className="mt-4 rounded-[1rem] border border-red-100 bg-red-50 px-3 py-3 text-xs leading-6 text-slate-700">
                       <div className="font-semibold text-slate-900">Inhalt des Sets</div>
-                      <div className="mt-1">Persönlicher Sicherheitsalarm, Clip oder Anhänger zur Befestigung sowie ergänzende Sicherheits-Accessoires für den Alltag.</div>
+                      <div className="mt-1">Persönlicher Sicherheitsalarm mit Sirene, Clip oder Schlüsselanhänger zur Befestigung sowie ergänzende kleine Sicherheits-Accessoires für Alltag und Heimweg.</div>
                     </div>
                   )}
 
@@ -918,7 +904,7 @@ export default function HelvSafeLandingPage() {
           <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-sm text-slate-500 md:grid-cols-4 lg:px-8">
             <div>
               <div className="font-semibold text-slate-900">{SHOP_SETTINGS.name}</div>
-              <p className="mt-3 leading-7">Schweizer Online-Shop für diskrete Sicherheitsprodukte mit erwachsener, ruhiger Gestaltung. 5% aller Einnahmen unterstützen Frauen-Notfallstellen in der Schweiz.</p>
+              <p className="mt-3 leading-7">Schweizer Online-Shop für diskrete Sicherheitsprodukte mit erwachsener, ruhiger Gestaltung, transparenter Produktbeschreibung und diskretem Versand. 5% aller Einnahmen unterstützen Frauen-Notfallstellen in der Schweiz.</p>
             </div>
             <div>
               <div className="font-semibold text-slate-900">Shop</div>
@@ -998,7 +984,7 @@ export default function HelvSafeLandingPage() {
                     <button onClick={placeOrder} disabled={checkoutLoading} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-red-500 to-red-600 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-red-200 disabled:opacity-60">
                       <CreditCard className="h-4 w-4" /> {checkoutLoading ? "Wird verarbeitet..." : paymentMethod === "twint" ? "Mit TWINT weiter" : paymentMethod === "card" ? "Mit Karte weiter" : "Bestellung abschicken"}
                     </button>
-                    <p className="mt-3 text-xs leading-6 text-slate-500">Mit Klick auf den Button wirst du zu Payrexx weitergeleitet. Dort kannst du nach der Freischaltung TWINT oder Kreditkarte als Zahlungsmethode auswählen.</p>
+                    <p className="mt-3 text-xs leading-6 text-slate-500">Mit Klick auf den Button wirst du sicher zu Payrexx weitergeleitet. Dort stehen nach der Freischaltung TWINT und Kreditkarte als Zahlungsmethoden zur Verfügung.</p>
                   </div>
               </div>
             </div>
