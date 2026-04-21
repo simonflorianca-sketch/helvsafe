@@ -6,14 +6,51 @@ export async function POST(req: Request) {
     const provider = body.provider;
     const order = body.order;
 
-    const instance = process.env.PAYREXX_INSTANCE!;
-    const apiKey = process.env.PAYREXX_API_KEY!;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
+    const instance = process.env.PAYREXX_INSTANCE;
+    const apiKey = process.env.PAYREXX_API_KEY;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+    if (!instance || !apiKey || !baseUrl) {
+      return NextResponse.json(
+        { error: "Payrexx ist nicht korrekt konfiguriert." },
+        { status: 500 }
+      );
+    }
 
     const successUrl = `${baseUrl}/?paid=1`;
     const failUrl = `${baseUrl}/?paid=0`;
 
-    const amount = Math.round(order.total * 100);
+    const basket = [
+      ...order.items.map((item: any) => ({
+        name: item.title,
+        description: item.title,
+        quantity: item.qty,
+        amount: Math.round(item.price * 100),
+      })),
+    ];
+
+    if (order.shipping && order.shipping > 0) {
+      basket.push({
+        name: "Versand",
+        description: "Versandkosten",
+        quantity: 1,
+        amount: Math.round(order.shipping * 100),
+      });
+    }
+
+    if (order.discount && order.discount > 0) {
+      basket.push({
+        name: "Rabatt",
+        description: "Rabatt",
+        quantity: 1,
+        amount: -Math.round(order.discount * 100),
+      });
+    }
+
+    const amount = basket.reduce(
+      (sum: number, item: any) => sum + item.amount * item.quantity,
+      0
+    );
 
     const payload = {
       amount,
@@ -28,14 +65,18 @@ export async function POST(req: Request) {
         email: order.customer.email,
         forename: order.customer.firstName,
         surname: order.customer.lastName,
+        street: order.customer.address,
+        postcode: order.customer.zip,
+        place: order.customer.city,
+        country: order.customer.country,
       },
-      pm: provider === "twint" ? ["twint"] : ["visa", "mastercard"],
-      basket: order.items.map((item: any) => ({
-        name: item.title,
-        description: item.title,
-        quantity: item.qty,
-        amount: Math.round(item.price * 100),
-      })),
+      pm:
+        provider === "twint"
+          ? ["twint"]
+          : provider === "card"
+          ? ["visa", "mastercard"]
+          : [],
+      basket,
     };
 
     const res = await fetch(
@@ -44,7 +85,7 @@ export async function POST(req: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          "X-API-KEY": apiKey,
         },
         body: JSON.stringify(payload),
       }
@@ -60,9 +101,21 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({
-      paymentLink: data?.data?.link,
-    });
+    const paymentLink =
+      data?.data?.link ||
+      data?.data?.url ||
+      data?.link ||
+      data?.url;
+
+    if (!paymentLink) {
+      console.error("Payrexx response without payment link:", data);
+      return NextResponse.json(
+        { error: "Payrexx hat keinen Zahlungslink zurückgegeben." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ paymentLink });
   } catch (error) {
     console.error("Payrexx checkout error:", error);
     return NextResponse.json({ error: "Checkout Fehler" }, { status: 500 });
