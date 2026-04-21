@@ -90,34 +90,26 @@ export async function POST(req: Request) {
         body: JSON.stringify(payload),
       }
     );
-
     const data = await res.json();
 
+    console.error("PAYREXX FULL RESPONSE:", JSON.stringify(data, null, 2));
+    
     if (!res.ok) {
-      console.error("Payrexx API error:", data);
       return NextResponse.json(
-        { error: data?.message || data?.error || "Payrexx Fehler" },
+        {
+          error: data?.message || data?.error || "Payrexx Fehler",
+          debug: data,
+        },
         { status: 500 }
       );
     }
-
-    const paymentLink =
-      data?.data?.link ||
-      data?.data?.url ||
-      data?.link ||
-      data?.url;
-
-    if (!paymentLink) {
-      console.error("Payrexx response without payment link:", data);
-      return NextResponse.json(
-        { error: "Payrexx hat keinen Zahlungslink zurückgegeben." },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ paymentLink });
-  } catch (error) {
-    console.error("Payrexx checkout error:", error);
-    return NextResponse.json({ error: "Checkout Fehler" }, { status: 500 });
-  }
-}
+    
+    return NextResponse.json({
+      paymentLink:
+        data?.data?.link ||
+        data?.data?.url ||
+        data?.link ||
+        data?.url ||
+        null,
+      debug: data,
+    });
